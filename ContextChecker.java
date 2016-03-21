@@ -11,6 +11,6 @@ public class ContextChecker {
 	
 	
 	public AST idCheck(AST a, ErrorReporter e){
-		
+		return a;
 	}
 }

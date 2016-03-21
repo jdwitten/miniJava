@@ -19,4 +19,6 @@ public class ClassType extends Type
     }
 
     public Identifier className;
+    public Declaration decl;
+    
 }

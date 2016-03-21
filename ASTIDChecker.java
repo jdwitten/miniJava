@@ -5,6 +5,7 @@
  */
 package miniJava.AbstractSyntaxTrees;
 
+import miniJava.AbstractSyntaxTrees.IdentificationTable.IDError;
 
 /*
  * Display AST in text form
@@ -28,7 +29,7 @@ public class ASTIDChecker implements Visitor<String,Object> {
      * @param ast root node of AST 
      */
 	public AST visitTree(AST ast){
-		return ast.visit(this, null);
+		return (AST)ast.visit(this, null);
 		
 	}
 	
@@ -120,8 +121,7 @@ public class ASTIDChecker implements Visitor<String,Object> {
     
     public Object visitFieldDecl(FieldDecl f, String arg){
        	cc.idTable.enter(f.name, new Attribute(f.name, f));
-    	Type t = f.type.visit(this, null);
-	f.Type = t;
+    	f.type = (Type)f.type.visit(this, null);
         return f;
     }
     
@@ -134,7 +134,7 @@ public class ASTIDChecker implements Visitor<String,Object> {
         cc.idTable.openScope();
 	ParameterDeclList newPDL = new ParameterDeclList();
         for (ParameterDecl pd: pdl) {
-        	newPDL.add((ParameterDecl)pd.visit(this, pfx));
+        	newPDL.add((ParameterDecl)pd.visit(this, null));
         }
 	
         StatementList sl = m.statementList;
@@ -142,7 +142,7 @@ public class ASTIDChecker implements Visitor<String,Object> {
         
         cc.idTable.openScope();
         for (Statement s: sl) {
-           newSL.add((StatementList)visit(this, null));
+           newSL.add((Statement)s.visit(this, null));
         }
         //Close scope on the declarations in the statements
         cc.idTable.closeScope();
@@ -150,17 +150,17 @@ public class ASTIDChecker implements Visitor<String,Object> {
         //Close scope on the parameter decls
         cc.idTable.closeScope();
         
-        return new MethodDecl( new MemberDecl(m.isPrivate, m.isStatic, m.mt, m.name, null), newPDL, newSL, null) ;
+        return new MethodDecl(new FieldDecl(m.isPrivate, m.isStatic, m.type, m.name, null), newPDL, newSL, null) ;
     }
     
     public Object visitParameterDecl(ParameterDecl pd, String arg){
     	cc.idTable.enter(pd.name, new Attribute(pd.name,pd));
-        return new ParameterDecl(pd.type.visit(this, null), pd.name), null);
+        return new ParameterDecl((Type)pd.type.visit(this, null), pd.name, null);
     } 
     
     public Object visitVarDecl(VarDecl vd, String arg){
     	cc.idTable.enter(vd.name, new Attribute(vd.name,vd));
-        return new VarDecl(vd.type.visit(this, null), vd.name, null);
+        return new VarDecl((Type)vd.type.visit(this, null), vd.name, null);
     }
  
 	
@@ -171,20 +171,35 @@ public class ASTIDChecker implements Visitor<String,Object> {
 	///////////////////////////////////////////////////////////////////////////////
     
     public Object visitBaseType(BaseType type, String arg){
-        
-        return null;
+        switch(type.typeKind){
+        case INT:
+        	 return new BaseType(TypeKind.INT, null);
+        case BOOLEAN:
+        	return new BaseType(TypeKind.BOOLEAN,null);
+        case VOID:
+        	return new BaseType(TypeKind.VOID, null);
+        case NULL:
+        	return new BaseType(TypeKind.NULL, null);
+        default:
+        	return null;
+        	
+        }
     }
     
     public Object visitClassType(ClassType type, String arg){
-        show(arg, type);
-        show(indent(arg), quote(type.className.spelling) + " classname");
-        return null;
+        try{
+        	type.decl = cc.idTable.retrieve(type.className.spelling).decl;
+        }
+        catch(IDError e){
+        	System.out.println(e.message);
+        	return new BaseType(TypeKind.UNSUPPORTED, null);
+        }
+        return type;
     }
     
     public Object visitArrayType(ArrayType type, String arg){
-        show(arg, type);
-        type.eltType.visit(this, indent(arg));
-        return null;
+        return new ArrayType((Type)type.eltType.visit(this, indent(arg)),null);
+      
     }
     
 	
@@ -196,71 +211,61 @@ public class ASTIDChecker implements Visitor<String,Object> {
 
     public Object visitBlockStmt(BlockStmt stmt, String arg){
         cc.idTable.openScope();
-    	show(arg, stmt);
         StatementList sl = stmt.sl;
-        show(arg,"  StatementList [" + sl.size() + "]");
-        String pfx = arg + "  . ";
+        StatementList newSL = new StatementList();
         for (Statement s: sl) {
-        	s.visit(this, pfx);
+        	newSL.add((Statement)s.visit(this,null));
         }
         cc.idTable.closeScope();
-        return null;
+        return new BlockStmt(newSL,null);
     }
     
     public Object visitVardeclStmt(VarDeclStmt stmt, String arg){
-        show(arg, stmt);
-        stmt.varDecl.visit(this, indent(arg));	
-        stmt.initExp.visit(this, indent(arg));
-        return null;
+        stmt.varDecl = (VarDecl)stmt.varDecl.visit(this, indent(arg));	
+        stmt.initExp = (Expression) stmt.initExp.visit(this, indent(arg));
+        return stmt;
     }
     
     public Object visitAssignStmt(AssignStmt stmt, String arg){
-        show(arg,stmt);
-        stmt.ref.visit(this, indent(arg));
-        stmt.val.visit(this, indent(arg));
-        return null;
+        stmt.ref = (Reference)stmt.ref.visit(this, indent(arg));
+        stmt.val = (Expression)stmt.val.visit(this, indent(arg));
+        return stmt;
     }
     
     public Object visitIxAssignStmt(IxAssignStmt stmt, String arg){
-        show(arg,stmt);
-        stmt.ixRef.visit(this, indent(arg));
-        stmt.val.visit(this, indent(arg));
-        return null;
+        stmt.ixRef = (IndexedRef)stmt.ixRef.visit(this, indent(arg));
+        stmt.val = (Expression)stmt.val.visit(this, indent(arg));
+        return stmt;
     }
     
     public Object visitCallStmt(CallStmt stmt, String arg){
-        show(arg,stmt);
-        stmt.methodRef.visit(this, indent(arg));
+    	Reference r = (Reference)stmt.methodRef.visit(this, indent(arg));
         ExprList al = stmt.argList;
-        show(arg,"  ExprList [" + al.size() + "]");
-        String pfx = arg + "  . ";
+        ExprList newAl = new ExprList();
         for (Expression e: al) {
-            e.visit(this, pfx);
+            newAl.add((Expression)e.visit(this, null));
         }
-        return null;
+        return new CallStmt(r, newAl, null);
     }
     
     public Object visitReturnStmt(ReturnStmt stmt, String arg){
-        show(arg,stmt);
          if (stmt.returnExpr != null)
-            stmt.returnExpr.visit(this, indent(arg));
-        return null;
+            stmt.returnExpr = (Expression)stmt.returnExpr.visit(this, indent(arg));
+        return stmt;
     }
     
     public Object visitIfStmt(IfStmt stmt, String arg){
-        show(arg,stmt);
-        stmt.cond.visit(this, indent(arg));
-        stmt.thenStmt.visit(this, indent(arg));
+        stmt.cond = (Expression)stmt.cond.visit(this, indent(arg));
+        stmt.thenStmt = (Statement)stmt.thenStmt.visit(this, indent(arg));
         if (stmt.elseStmt != null)
-            stmt.elseStmt.visit(this, indent(arg));
-        return null;
+            stmt.elseStmt = (Statement)stmt.elseStmt.visit(this, indent(arg));
+        return stmt;
     }
     
     public Object visitWhileStmt(WhileStmt stmt, String arg){
-        show(arg, stmt);
-        stmt.cond.visit(this, indent(arg));
-        stmt.body.visit(this, indent(arg));
-        return null;
+        stmt.cond = (Expression)stmt.cond.visit(this, indent(arg));
+        stmt.body = (Statement)stmt.body.visit(this, indent(arg));
+        return stmt;
     }
     
 
@@ -271,55 +276,48 @@ public class ASTIDChecker implements Visitor<String,Object> {
 	///////////////////////////////////////////////////////////////////////////////
 
     public Object visitUnaryExpr(UnaryExpr expr, String arg){
-        show(arg, expr);
-        expr.operator.visit(this, indent(arg));
-        expr.expr.visit(this, indent(indent(arg)));
-        return null;
+        expr.operator = (Operator)expr.operator.visit(this, indent(arg));
+        expr.expr = (Expression)expr.expr.visit(this, indent(indent(arg)));
+        return expr;
     }
     
     public Object visitBinaryExpr(BinaryExpr expr, String arg){
-        show(arg, expr);
-        expr.operator.visit(this, indent(arg));
-        expr.left.visit(this, indent(indent(arg)));
-        expr.right.visit(this, indent(indent(arg)));
-        return null;
+        expr.operator = (Operator)expr.operator.visit(this, indent(arg));
+        expr.left = (Expression)expr.left.visit(this, indent(indent(arg)));
+        expr.right = (Expression)expr.right.visit(this, indent(indent(arg)));
+        return expr;
     }
     
     public Object visitRefExpr(RefExpr expr, String arg){
-        show(arg, expr);
-        expr.ref.visit(this, indent(arg));
-        return null;
+        expr.ref = (Reference)expr.ref.visit(this, indent(arg));
+        return expr;
     }
     
     public Object visitCallExpr(CallExpr expr, String arg){
-        show(arg, expr);
-        expr.functionRef.visit(this, indent(arg));
+    
+        Reference newR = (Reference)expr.functionRef.visit(this, indent(arg));
         ExprList al = expr.argList;
-        show(arg,"  ExprList + [" + al.size() + "]");
-        String pfx = arg + "  . ";
+        ExprList newAl= new ExprList();
         for (Expression e: al) {
-            e.visit(this, pfx);
+            newAl.add((Expression)e.visit(this, null));
         }
-        return null;
+        return new CallExpr(newR, al,null);
     }
     
     public Object visitLiteralExpr(LiteralExpr expr, String arg){
-        show(arg, expr);
-        expr.lit.visit(this, indent(arg));
-        return null;
+        expr.lit = (Terminal)expr.lit.visit(this, indent(arg));
+        return expr;
     }
  
     public Object visitNewArrayExpr(NewArrayExpr expr, String arg){
-        show(arg, expr);
-        expr.eltType.visit(this, indent(arg));
-        expr.sizeExpr.visit(this, indent(arg));
-        return null;
+        expr.eltType = (Type)expr.eltType.visit(this, indent(arg));
+        expr.sizeExpr = (Expression)expr.sizeExpr.visit(this, indent(arg));
+        return expr;
     }
     
     public Object visitNewObjectExpr(NewObjectExpr expr, String arg){
-        show(arg, expr);
-        expr.classtype.visit(this, indent(arg));
-        return null;
+        expr.classtype	= (ClassType)expr.classtype.visit(this, indent(arg));
+        return expr;
     }
     
 

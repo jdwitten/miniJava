@@ -56,7 +56,7 @@ public class IdentificationTable {
 				if(a.id.equals(id)) return a;
 			}
 		}
-		throw new IDError();
+		throw new IDError("Could not find Declaration for id: " + id );
 	}
 	
 	public class IDError extends Error{
@@ -64,6 +64,14 @@ public class IdentificationTable {
 		 * 
 		 */
 		private static final long serialVersionUID = 1L;
+		public String message;
+		public IDError(String mes){
+			this.message = mes;
+		}
+		
+		public void printMes(){
+			System.out.println(message);
+		}
 		
 	}
 }

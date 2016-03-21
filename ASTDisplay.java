@@ -5,9 +5,7 @@
  */
 package miniJava.AbstractSyntaxTrees;
 
-import contextualAnalyzer.Attribute;
-import contextualAnalyzer.ContextChecker;
-import contextualAnalyzer.ScopeLevel;
+
 
 /*
  * Display AST in text form
@@ -87,7 +85,7 @@ public class ASTDisplay implements Visitor<String,Object> {
 	//
 	/////////////////////////////////////////////////////////////////////////////// 
 
-    public Object visitPackage(Package prog, String arg, boolean contextCheck){
+    public Object visitPackage(Package prog, String arg){
     	show(arg, prog);
         ClassDeclList cl = prog.classDeclList;
         show(arg,"  ClassDeclList [" + cl.size() + "]");
