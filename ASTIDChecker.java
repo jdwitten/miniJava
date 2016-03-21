@@ -328,28 +328,24 @@ public class ASTIDChecker implements Visitor<String,Object> {
 	///////////////////////////////////////////////////////////////////////////////
 	
     public Object visitQualifiedRef(QualifiedRef qr, String arg) {
-    	show(arg, qr);
-    	qr.id.visit(this, indent(arg));
-    	qr.ref.visit(this, indent(arg));
-	    return null;
+    	qr.id = (Identifier)qr.id.visit(this, indent(arg));
+    	qr.ref = (Reference)qr.ref.visit(this, indent(arg));
+	    return qr;
     }
     
     public Object visitIndexedRef(IndexedRef ir, String arg) {
-    	show(arg, ir);
-    	ir.indexExpr.visit(this, indent(arg));
-    	ir.idRef.visit(this, indent(arg));
-    	return null;
+    	ir.indexExpr = (Expression)ir.indexExpr.visit(this, indent(arg));
+    	ir.idRef = (IdRef) ir.idRef.visit(this, indent(arg));
+    	return ir;
     }
     
     public Object visitIdRef(IdRef ref, String arg) {
-    	show(arg,ref);
-    	ref.id.visit(this, indent(arg));
-    	return null;
+    	ref.id = (Identifier) ref.id.visit(this, indent(arg));
+    	return ref;
     }
    
     public Object visitThisRef(ThisRef ref, String arg) {
-    	show(arg,ref);
-    	return null;
+    	return ref;
     }
     
     
@@ -360,14 +356,22 @@ public class ASTIDChecker implements Visitor<String,Object> {
 	///////////////////////////////////////////////////////////////////////////////
     
     public Object visitIdentifier(Identifier id, String arg){
-        show(arg, quote(id.spelling) + " " + id.toString());
         int i = cc.idTable.currentScope;
         while(i>=0){
         	ScopeLevel refs = cc.idTable.idTable.get(i);
         	for(Attribute ref : refs.entry){
         		if(ref.id.equals(id)){
-        			id.decl = ref.decl;
-        			return null;
+        			try{
+        				cc.idTable.retrieve(id.spelling);
+        				id.decl = ref.decl;
+        				return id;
+        			}
+        			catch(IDError e){
+        				if(i>0) break;
+        				else{
+        					e.printMes();
+        				}
+        			}
         		}
         	i--;
         	}
@@ -376,17 +380,14 @@ public class ASTIDChecker implements Visitor<String,Object> {
     }
     
     public Object visitOperator(Operator op, String arg){
-        show(arg, quote(op.spelling) + " " + op.toString());
-        return null;
+        return op;
     }
     
     public Object visitIntLiteral(IntLiteral num, String arg){
-        show(arg, quote(num.spelling) + " " + num.toString());
-        return null;
+        return num;
     }
     
     public Object visitBooleanLiteral(BooleanLiteral bool, String arg){
-        show(arg, quote(bool.spelling) + " " + bool.toString());
-        return null;
+        return bool;
     }
 }

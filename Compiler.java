@@ -55,28 +55,28 @@ public class Compiler {
 		System.out.print("Syntactic analysis complete:  ");
 		
 		if (reporter.hasErrors()) {
-			System.out.println("INVALID arithmetic expression");
+			System.out.println("INVALID miniJava file");
 			System.exit(4);
 		}
 		else {
-			System.out.println("valid arithmetic expression");
+			System.out.println("Syntactically valid miniJava file");
 			  // traverse AST to construct explicitly parenthesized text representation
 			 ASTDisplay display = new ASTDisplay();
 		     display.showTree(ast);
 		}
 		
 		System.out.println("Contextual analysis ... ID Checking... ");
-		Package idCheckedAST = cc.idCheck(ast, reporter);
+		Package idCheckedAST = (Package)cc.idCheck(ast, reporter);
 		
 		if(reporter.hasErrors()){
-			System.out.println("INVALID arithmetic expression... ID Error");
+			System.out.println("INVALID miniJava file... ID Error");
 			System.exit(4);
 		}
 		System.out.println("ID Checking complete... Now Type Checking");
 		
 		Package typeCheckedAST = cc.typeCheck(idCheckedAST, reporter);
 		if(reporter.hasErrors()){
-			System.out.println("INVALID arithmetic expression... Type Error");
+			System.out.println("INVALID miniJava file... Type Error");
 			System.exit(4);
 		}
 		

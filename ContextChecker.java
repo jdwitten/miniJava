@@ -11,6 +11,7 @@ public class ContextChecker {
 	
 	
 	public AST idCheck(AST a, ErrorReporter e){
-		return a;
+		ASTIDChecker idC = new ASTIDChecker();
+		return idC.idCheck(AST a, ErrorReporter e);
 	}
 }
